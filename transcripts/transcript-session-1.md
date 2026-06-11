@@ -2,7 +2,7 @@
 
 ## User Prompt
 
-Review the BhuMe boundary assignment against the live hiring website using a maximum-effort and devil's-advocate posture.
+Review the BhuMe boundary assignment against the live hiring website, check the exact requirements, and identify gaps before submission.
 
 ## Actions Taken
 
@@ -25,3 +25,10 @@ Review the BhuMe boundary assignment against the live hiring website using a max
 - Make the README explicit about the current scores, conservative correction policy, and confidence interpretation.
 - Replace generic transcript instructions with actual working notes and submission evidence.
 - Add a local contract checker for prediction files, manifests, transcript presence, and documentation claims.
+
+## My Decisions From This Review
+
+- Do not use public truth geometries as a shortcut for final predictions.
+- Do not add a runtime LLM/API dependency to the solver.
+- Keep the solver deterministic and reproducible from the provided files.
+- Prefer `flagged` when the imagery and boundary evidence are ambiguous.

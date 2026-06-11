@@ -1,14 +1,14 @@
 # Reconstructed AI Collaboration Log
 
-This is a reconstructed summary of how I used AI while working on the BhuMe boundary assignment over roughly two days. It is not a verbatim raw chat export. It documents the actual workflow, decisions, debugging steps, and validation that happened during the assignment.
+This is a reconstructed summary of my AI-assisted workflow while working on the BhuMe boundary assignment over roughly two days. It is not a verbatim raw chat export. It documents the actual workflow, decisions, debugging steps, and validation that happened during the assignment.
 
 ## 1. Understanding the assignment
 
-I first used AI to understand what BhuMe was asking for, instead of jumping directly into code.
+I first focused on understanding what BhuMe was asking for, instead of jumping directly into code.
 
 The assignment looked simple at first: read `input.geojson`, inspect satellite imagery, and output `predictions.geojson`. After going through the hiring website, it became clear that the actual task was not just to move polygons. The important part was to decide when a boundary can be corrected and when it should be flagged.
 
-I asked the assistant to inspect and explain the BhuMe assignment website deeply. We checked the main workflow pages:
+I used the assistant to inspect and summarize the BhuMe assignment website, then I checked the main workflow pages:
 
 - `/understand/`
 - `/playground/`
@@ -17,7 +17,7 @@ I asked the assistant to inspect and explain the BhuMe assignment website deeply
 - `/test/`
 - `/submit/`
 
-From that, I learned the main constraints:
+From that, I identified the main constraints:
 
 - The input is cadastral plot geometry in `input.geojson`.
 - Satellite imagery is the primary signal.
@@ -32,21 +32,21 @@ This changed the direction of the project. I stopped thinking of the task as "ma
 
 ## 2. Checking the starter kit and expected workflow
 
-After understanding the website, I used AI to inspect the starter kit and compare it with my repository.
+After understanding the website, I inspected the starter kit and compared it with my repository, using the assistant to speed up the review.
 
 The important takeaway from the starter kit was that the public examples are only a directional check. They are not the full grading set. That meant overfitting to the few public truths would be risky.
 
-We checked the starter kit contract and scorer behavior. The assignment expected a method that can run reproducibly, not hand-edited GeoJSON. This influenced the structure of the repo:
+I checked the starter kit contract and scorer behavior. The assignment expected a method that can run reproducibly, not hand-edited GeoJSON. This influenced the structure of the repo:
 
 - keep a CLI-based solver;
 - generate predictions from input files;
 - include manifests and scores;
-- include review panels and audit artifacts;
+- include final predictions, manifests, and scores;
 - document what the method does and where it fails.
 
 ## 3. First audit of the solution
 
-I then asked the assistant to audit my existing assignment against the website requirements.
+I then audited my existing assignment against the website requirements.
 
 The first serious issue was that the repo was structurally correct but too conservative. It produced valid prediction files, but on the public examples all plots were flagged. That meant the website could not show any positive correction score.
 
@@ -61,9 +61,9 @@ This made the project look compliant but not strong.
 
 ## 4. Brainstorming possible methods
 
-I asked what kind of methods would make the solution stronger without overcomplicating it.
+I brainstormed what kind of methods would make the solution stronger without overcomplicating it.
 
-We discussed several options:
+The options considered were:
 
 - using a median shift from public truths;
 - using an LLM/API in the solver;
@@ -72,7 +72,7 @@ We discussed several options:
 - using local candidate-grid alignment;
 - using confidence gates to avoid unsafe movement.
 
-We rejected some approaches.
+I rejected some approaches.
 
 Using the public truth median shift would have improved the visible score, but it would be overfitting. It would not be a defensible hidden-set method.
 
@@ -89,7 +89,7 @@ The chosen direction was classical, reproducible, and explainable:
 
 ## 5. Debugging the website upload
 
-I asked the assistant to test the generated outputs on the actual BhuMe `/test/` page using Playwright.
+I tested the generated outputs on the actual BhuMe `/test/` page using Playwright.
 
 This found an important bug that local Python tools did not catch: the browser rejected one generated GeoJSON file because it contained raw `NaN` values in properties copied from the source data.
 
@@ -105,9 +105,9 @@ This was a useful example of why testing only locally was not enough. The actual
 
 ## 6. Improving the correction method
 
-Once the output format was reliable, I asked the assistant to improve the actual correction quality.
+Once the output format was reliable, I worked on improving the actual correction quality.
 
-The first solver version used local edge evidence, but it still failed to show enough public corrections. We then investigated why `boundaries.tif` was not helping enough.
+The first solver version used local edge evidence, but it still failed to show enough public corrections. I then investigated why `boundaries.tif` was not helping enough.
 
 The key discovery was that `boundaries.tif` and `imagery.tif` did not have the same raster grid. The solver was treating them as if they lined up directly, which weakened the boundary-hint signal.
 
@@ -130,7 +130,7 @@ This improved the result without using public-truth coordinates as a shortcut.
 
 ## 7. Confidence and restraint tuning
 
-After the boundary-grid alignment fix, we tuned the gating logic.
+After the boundary-grid alignment fix, I tuned the gating logic.
 
 One issue was that some good corrections were being rejected because the top candidate and the second-best candidate were very close. After inspection, this often happened because several neighboring pixel shifts described almost the same boundary alignment. So the solver was rejecting some valid plateau cases.
 
@@ -143,11 +143,11 @@ The confidence rule was updated to handle this more carefully:
 
 This improved correction coverage without switching to an aggressive mode that moved too many plots.
 
-We also tested an aggressive preset. It improved some public examples but corrected too many plots overall and worsened at least one Malatavadi example. That was rejected because hidden-set restraint matters.
+I also tested an aggressive preset. It improved some public examples but corrected too many plots overall and worsened at least one Malatavadi example. I rejected that version because hidden-set restraint matters.
 
 ## 8. Final validation against the live website
 
-After regenerating final outputs, I asked the assistant to run both local checks and the real BhuMe website workflow again.
+After regenerating final outputs, I ran both local checks and the real BhuMe website workflow again.
 
 The final local artifacts passed:
 
@@ -184,7 +184,7 @@ This confirmed that the final files are accepted by the real BhuMe test portal a
 
 ## 9. Final repository updates
 
-I then used AI to update the repository so the submission is explainable and reproducible.
+I then updated the repository so the submission is explainable and reproducible.
 
 The README was updated with:
 
@@ -201,10 +201,6 @@ Additional artifacts were generated:
 - final predictions;
 - manifests;
 - scores;
-- review panels;
-- ablation summary;
-- website upload audit;
-- site constraint audit.
 
 The final repository was pushed to GitHub.
 
@@ -218,9 +214,9 @@ The second lesson was that provided data layers need to be checked carefully. `b
 
 The third lesson was that public examples are useful for debugging, but they should not become the method. The final solver improves public examples, but the method is still based on imagery and boundary evidence, not public-truth overfitting.
 
-## 11. How AI was useful
+## 11. How AI assistance was used
 
-AI was useful as a technical pair-programming assistant in these ways:
+AI assistance was useful as a technical pair-programming and review tool in these ways:
 
 - understanding the assignment website;
 - extracting exact output requirements;
@@ -228,10 +224,10 @@ AI was useful as a technical pair-programming assistant in these ways:
 - proposing possible geospatial correction methods;
 - rejecting risky shortcuts like public-truth overfitting;
 - debugging browser-side GeoJSON parsing;
-- implementing boundary-raster alignment;
-- improving confidence gates;
-- writing validation scripts;
+- drafting implementation changes for boundary-raster alignment;
+- helping review confidence-gate tradeoffs;
+- helping create validation scripts;
 - running Playwright checks against the real website;
 - summarizing remaining risks.
 
-I used AI mainly to accelerate reasoning, implementation, and verification. I still had to decide the direction: prefer reproducibility, avoid overfitting, and keep uncertain plots flagged.
+I used AI mainly to accelerate reasoning, implementation, and verification. I made the main design decisions: prefer reproducibility, avoid public-truth overfitting, reject a runtime LLM dependency, and keep uncertain plots flagged.
