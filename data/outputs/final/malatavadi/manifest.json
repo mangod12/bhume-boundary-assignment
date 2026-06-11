@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "timestamp_utc": "2026-06-10T13:23:04Z",
+  "timestamp_utc": "2026-06-11T10:32:47Z",
   "runner": "bhume-boundary-assignment",
   "config": {
     "village_name": "12429_malatavadi_chandgad_kolhapur",
@@ -15,17 +15,24 @@
     "strict": false
   },
   "raster_used": true,
+  "boundary_hints_used": true,
+  "alignment_prior": null,
   "counts": {
     "total": 2508,
-    "corrected": 168,
-    "flagged": 2340,
+    "corrected": 231,
+    "flagged": 2277,
     "skipped": 0
   },
   "confidence_stats": {
     "count": 2508,
     "min": 0.35,
-    "max": 0.47412881381741134,
-    "mean": 0.35523629435870807
+    "max": 0.94,
+    "mean": 0.38221580914565917
   },
-  "elapsed_seconds": 72.175
+  "geometry_repair": {
+    "attempted": 0,
+    "repaired": 0,
+    "unrepairable": 0
+  },
+  "elapsed_seconds": 259.524
 }

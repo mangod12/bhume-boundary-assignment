@@ -1,0 +1,128 @@
+[
+  {
+    "plot_number": "1145",
+    "reason": "public_truth",
+    "status": "corrected",
+    "confidence": 0.8490038208094055,
+    "file": "01_public_truth_1145.png"
+  },
+  {
+    "plot_number": "1403",
+    "reason": "public_truth",
+    "status": "corrected",
+    "confidence": 0.6954833193603274,
+    "file": "02_public_truth_1403.png"
+  },
+  {
+    "plot_number": "1476",
+    "reason": "public_truth",
+    "status": "corrected",
+    "confidence": 0.6402558499653128,
+    "file": "03_public_truth_1476.png"
+  },
+  {
+    "plot_number": "1710",
+    "reason": "public_truth",
+    "status": "corrected",
+    "confidence": 0.7345052197669011,
+    "file": "04_public_truth_1710.png"
+  },
+  {
+    "plot_number": "2647",
+    "reason": "public_truth",
+    "status": "flagged",
+    "confidence": 0.35,
+    "file": "05_public_truth_2647.png"
+  },
+  {
+    "plot_number": "622",
+    "reason": "public_truth",
+    "status": "flagged",
+    "confidence": 0.35,
+    "file": "06_public_truth_622.png"
+  },
+  {
+    "plot_number": "1835",
+    "reason": "top_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.9321669512842804,
+    "file": "07_top_confidence_corrected_1835.png"
+  },
+  {
+    "plot_number": "659",
+    "reason": "top_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.9288554520590669,
+    "file": "08_top_confidence_corrected_659.png"
+  },
+  {
+    "plot_number": "57",
+    "reason": "top_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.9284739292022688,
+    "file": "09_top_confidence_corrected_57.png"
+  },
+  {
+    "plot_number": "644",
+    "reason": "top_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.9157075761592871,
+    "file": "10_top_confidence_corrected_644.png"
+  },
+  {
+    "plot_number": "1716",
+    "reason": "top_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.8975376006366763,
+    "file": "11_top_confidence_corrected_1716.png"
+  },
+  {
+    "plot_number": "1828",
+    "reason": "top_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.89709674342818,
+    "file": "12_top_confidence_corrected_1828.png"
+  },
+  {
+    "plot_number": "2237",
+    "reason": "mid_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.7595968713411292,
+    "file": "13_mid_confidence_corrected_2237.png"
+  },
+  {
+    "plot_number": "2454",
+    "reason": "mid_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.7595534620797888,
+    "file": "14_mid_confidence_corrected_2454.png"
+  },
+  {
+    "plot_number": "700",
+    "reason": "mid_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.7588652687874871,
+    "file": "15_mid_confidence_corrected_700.png"
+  },
+  {
+    "plot_number": "1215",
+    "reason": "mid_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.7576637377869665,
+    "file": "16_mid_confidence_corrected_1215.png"
+  },
+  {
+    "plot_number": "771",
+    "reason": "mid_confidence_corrected",
+    "status": "corrected",
+    "confidence": 0.7572665153830603,
+    "file": "17_mid_confidence_corrected_771.png"
+  },
+  {
+    "plot_number": "1064",
+    "reason": "high_confidence_flagged",
+    "status": "flagged",
+    "confidence": 0.85,
+    "file": "18_high_confidence_flagged_1064.png"
+  }
+]

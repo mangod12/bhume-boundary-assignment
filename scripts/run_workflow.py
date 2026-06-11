@@ -26,6 +26,8 @@ def run_cmd(cmd: List[str], *, cwd: Path, env: Optional[Dict[str, str]] = None) 
         cmd,
         cwd=str(cwd),
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         env=env,
     )
@@ -40,14 +42,15 @@ def run_assignment_audit(base_url: str, project_root: Path) -> Dict[str, Any]:
     output_path = project_root / "tools" / "last_audit.json"
     env = os.environ.copy()
     env["BHUME_BASE_URL"] = base_url
-    run_cmd(
+    result = run_cmd(
         ["node", "tools/audit_assignment_site.mjs"],
         cwd=project_root,
         env=env,
     )
+    output_path.write_text(result.stdout, encoding="utf-8")
     if not output_path.exists():
         raise RuntimeError("Playwright audit did not write tools/last_audit.json.")
-    audit = json.loads(output_path.read_text(encoding="utf-8"))
+    audit = json.loads(output_path.read_text(encoding="utf-8-sig"))
     if not isinstance(audit, dict):
         raise RuntimeError("Audit output had unexpected format.")
     return audit
@@ -158,12 +161,25 @@ def run_case(
                     *CLI,
                     "score",
                     "--predictions", str(pred_path),
+                    "--input", str(village_dir / "input.geojson"),
                     "--truth", str(truth_path),
                     "--out", str(score_path),
                 ],
                 cwd=PROJECT_ROOT,
             )
             score_payload = json.loads(score_path.read_text(encoding="utf-8"))
+            run_cmd(
+                [
+                    sys.executable,
+                    "tools/render_review_panels.py",
+                    "--village", str(village_dir),
+                    "--predictions", str(pred_path),
+                    "--truth", str(truth_path),
+                    "--out-dir", str(out_dir / "review_panels"),
+                    "--max-panels", "18",
+                ],
+                cwd=PROJECT_ROOT,
+            )
 
         elapsed = (datetime.now(timezone.utc) - start).total_seconds()
         return CaseResult(

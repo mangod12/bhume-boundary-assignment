@@ -99,3 +99,104 @@ def score_predictions(
         with open(out_path, "w", encoding="utf-8") as handle:
             json.dump(results, handle, indent=2)
     return results
+
+
+def score_predictions_with_baseline(
+    predictions_path: Path,
+    input_path: Path,
+    truth_path: Path,
+    out_path: Path | None = None,
+) -> Dict[str, object]:
+    gpd = geopandas()
+    pred = gpd.read_file(str(predictions_path))
+    original = gpd.read_file(str(input_path))
+    truth = gpd.read_file(str(truth_path))
+
+    for label, gdf in (("predictions", pred), ("input", original), ("truth", truth)):
+        if "plot_number" not in gdf.columns:
+            raise ValueError(f"{label} must include plot_number")
+
+    base_metrics = score_predictions(predictions_path, truth_path, None)
+
+    pred = pred.set_index("plot_number")
+    original = original.set_index("plot_number")
+    truth = truth.set_index("plot_number")
+    common = pred.index.intersection(original.index).intersection(truth.index)
+    if len(common) == 0:
+        raise ValueError("No common plot_number between predictions, input, and truth.")
+
+    pred = pred.loc[common].copy()
+    original = original.loc[common].copy()
+    truth = truth.loc[common].copy()
+
+    crs = pred.crs or original.crs or truth.crs or "EPSG:4326"
+    if pred.crs is None:
+        pred = pred.set_crs(crs)
+    if original.crs is None:
+        original = original.set_crs(crs)
+    if truth.crs is None:
+        truth = truth.set_crs(crs)
+
+    pred = pred.to_crs("EPSG:3857")
+    original = original.to_crs("EPSG:3857")
+    truth = truth.to_crs("EPSG:3857")
+
+    rows = []
+    for plot_number in common:
+        pred_geom = pred.loc[plot_number].geometry
+        original_geom = original.loc[plot_number].geometry
+        truth_geom = truth.loc[plot_number].geometry
+
+        pred_iou = _iou(pred_geom, truth_geom)
+        baseline_iou = _iou(original_geom, truth_geom)
+        status = str(pred.loc[plot_number].get("status", ""))
+        confidence = float(pred.loc[plot_number].get("confidence", 0.0))
+        rows.append(
+            {
+                "plot_number": str(plot_number),
+                "status": status,
+                "confidence": confidence,
+                "baseline_iou": baseline_iou,
+                "prediction_iou": pred_iou,
+                "iou_delta": pred_iou - baseline_iou,
+            }
+        )
+
+    deltas = [row["iou_delta"] for row in rows]
+    corrected = [row for row in rows if row["status"] == "corrected"]
+    flagged = [row for row in rows if row["status"] == "flagged"]
+
+    baseline_mean = _mean([row["baseline_iou"] for row in rows])
+    prediction_mean = _mean([row["prediction_iou"] for row in rows])
+    results: Dict[str, object] = {
+        **base_metrics,
+        "baseline_mean_iou": baseline_mean,
+        "prediction_mean_iou": prediction_mean,
+        "mean_iou_delta": prediction_mean - baseline_mean,
+        "corrected_mean_delta": _mean([row["iou_delta"] for row in corrected]),
+        "flagged_mean_delta": _mean([row["iou_delta"] for row in flagged]),
+        "improved_count": int(sum(1 for value in deltas if value > 0.0)),
+        "worsened_count": int(sum(1 for value in deltas if value < 0.0)),
+        "unchanged_count": int(sum(1 for value in deltas if value == 0.0)),
+        "per_plot": rows,
+    }
+
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as handle:
+            json.dump(results, handle, indent=2)
+    return results
+
+
+def _iou(left, right) -> float:
+    union = left.union(right).area
+    if union <= 0:
+        return 0.0
+    return float(left.intersection(right).area / union)
+
+
+def _mean(values) -> float:
+    values = list(values)
+    if not values:
+        return 0.0
+    return float(sum(values) / len(values))

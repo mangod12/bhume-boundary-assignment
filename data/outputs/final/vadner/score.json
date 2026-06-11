@@ -1,8 +1,72 @@
 {
+  "total_predictions": 2457,
+  "total_truth": 6,
+  "overlap_count": 6,
+  "overlap_ratio_predictions": 0.002442002442002442,
+  "overlap_ratio_truth": 1.0,
   "total": 6,
-  "mean_iou": 0.5988309707795758,
-  "mean_area_delta": 0.019808495828276946,
-  "corrected_ratio": 0.0,
-  "flagged_ratio": 1.0,
-  "corrected_mean_iou": 0.0
+  "mean_iou": 0.7463551032922453,
+  "mean_area_delta": 0.019808495836612112,
+  "corrected_ratio": 0.6666666666666666,
+  "overlap_corrected_ratio": 0.6666666666666666,
+  "flagged_ratio": 0.33333333333333337,
+  "corrected_mean_iou": 0.8102309556829703,
+  "baseline_mean_iou": 0.5988309707795758,
+  "prediction_mean_iou": 0.7463551032922453,
+  "mean_iou_delta": 0.1475241325126695,
+  "corrected_mean_delta": 0.2212861987690042,
+  "flagged_mean_delta": 0.0,
+  "improved_count": 4,
+  "worsened_count": 0,
+  "unchanged_count": 2,
+  "per_plot": [
+    {
+      "plot_number": "1145",
+      "status": "corrected",
+      "confidence": 0.8490038208094055,
+      "baseline_iou": 0.49479813298843506,
+      "prediction_iou": 0.9232851980801744,
+      "iou_delta": 0.42848706509173934
+    },
+    {
+      "plot_number": "1403",
+      "status": "corrected",
+      "confidence": 0.6954833193603274,
+      "baseline_iou": 0.6927710868757484,
+      "prediction_iou": 0.888249312593727,
+      "iou_delta": 0.19547822571797857
+    },
+    {
+      "plot_number": "1476",
+      "status": "corrected",
+      "confidence": 0.6402558499653128,
+      "baseline_iou": 0.555725451145753,
+      "prediction_iou": 0.7887746685815118,
+      "iou_delta": 0.2330492174357588
+    },
+    {
+      "plot_number": "1710",
+      "status": "corrected",
+      "confidence": 0.7345052197669011,
+      "baseline_iou": 0.6124843566459277,
+      "prediction_iou": 0.6406146434764678,
+      "iou_delta": 0.028130286830540085
+    },
+    {
+      "plot_number": "2647",
+      "status": "flagged",
+      "confidence": 0.35,
+      "baseline_iou": 0.4135587937713202,
+      "prediction_iou": 0.4135587937713202,
+      "iou_delta": 0.0
+    },
+    {
+      "plot_number": "622",
+      "status": "flagged",
+      "confidence": 0.35,
+      "baseline_iou": 0.8236480032502701,
+      "prediction_iou": 0.8236480032502701,
+      "iou_delta": 0.0
+    }
+  ]
 }

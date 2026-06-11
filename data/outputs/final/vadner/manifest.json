@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "timestamp_utc": "2026-06-10T13:23:47Z",
+  "timestamp_utc": "2026-06-11T10:27:44Z",
   "runner": "bhume-boundary-assignment",
   "config": {
     "village_name": "34855_vadnerbhairav_chandavad_nashik",
@@ -15,17 +15,24 @@
     "strict": false
   },
   "raster_used": true,
+  "boundary_hints_used": true,
+  "alignment_prior": null,
   "counts": {
     "total": 2457,
-    "corrected": 108,
-    "flagged": 2349,
+    "corrected": 923,
+    "flagged": 1534,
     "skipped": 0
   },
   "confidence_stats": {
     "count": 2457,
     "min": 0.35,
-    "max": 0.85,
-    "mean": 0.35382924104832103
+    "max": 0.9321669512842804,
+    "mean": 0.4969124575280263
   },
-  "elapsed_seconds": 113.8932
+  "geometry_repair": {
+    "attempted": 1,
+    "repaired": 1,
+    "unrepairable": 0
+  },
+  "elapsed_seconds": 285.9928
 }

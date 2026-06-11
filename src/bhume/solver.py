@@ -45,6 +45,17 @@ class PlotDecision:
     method_note: str
 
 
+@dataclass(frozen=True)
+class AlignmentPrior:
+    dx_px: float
+    dy_px: float
+    confidence: float
+    samples: int
+    support: int
+    consistency: float
+    mean_margin: float
+
+
 class BoundarySolver:
     def __init__(self, config: SolverConfig):
         self.config = config
@@ -63,7 +74,6 @@ class BoundarySolver:
         manifest_path: Optional[Path] = None,
         include_flagged: Optional[bool] = None,
     ) -> SolveArtifacts:
-        del boundaries
         include_flagged = self.config.include_flagged if include_flagged is None else include_flagged
         source = read_geojson(input_geojson)
 
@@ -71,7 +81,15 @@ class BoundarySolver:
         self._repair_stats = {"attempted": 0, "repaired": 0, "unrepairable": 0}
 
         raster = read_raster(imagery) if imagery and imagery.exists() else None
+        boundary_raster = read_raster(boundaries) if boundaries and boundaries.exists() else None
+        boundary_raster = self._align_boundary_raster(boundary_raster, raster)
         source_crs = getattr(source, "crs", None)
+        alignment_prior = self._estimate_alignment_prior(
+            source=source,
+            raster=raster,
+            boundary_raster=boundary_raster,
+            source_crs=source_crs,
+        )
 
         out_features = []
         counters = {"total": 0, "corrected": 0, "flagged": 0, "skipped": 0}
@@ -79,7 +97,13 @@ class BoundarySolver:
 
         for _, row in source.iterrows():
             counters["total"] += 1
-            decision = self._solve_plot(row, raster=raster, source_crs=source_crs)
+            decision = self._solve_plot(
+                row,
+                raster=raster,
+                boundary_raster=boundary_raster,
+                source_crs=source_crs,
+                alignment_prior=alignment_prior,
+            )
 
             normalized = self._normalize_geometry_for_output(decision.geometry)
             if normalized is None:
@@ -122,14 +146,16 @@ class BoundarySolver:
             skipped=counters["skipped"],
             elapsed_seconds=round(elapsed, 4),
         )
-        self._write_manifest(artifacts, bool(raster))
+        self._write_manifest(artifacts, bool(raster), bool(boundary_raster), alignment_prior)
         return artifacts
 
     def _solve_plot(
         self,
         row,
         raster: Optional[RasterLoadResult],
+        boundary_raster: Optional[RasterLoadResult],
         source_crs=None,
+        alignment_prior: Optional[AlignmentPrior] = None,
     ) -> PlotDecision:
         geometry = getattr(row, "geometry", None)
         if not self._is_valid_geometry(geometry):
@@ -172,7 +198,9 @@ class BoundarySolver:
         shifted, shift_note, shift_conf = self._estimate_shift(
             row,
             raster=raster,
+            boundary_raster=boundary_raster,
             source_crs=source_crs,
+            alignment_prior=alignment_prior,
         )
         if shifted is not None and shift_conf >= self.config.shift_threshold:
             conf = max(self.config.min_confidence, shift_conf)
@@ -197,7 +225,9 @@ class BoundarySolver:
         self,
         row,
         raster: RasterLoadResult,
+        boundary_raster: Optional[RasterLoadResult],
         source_crs=None,
+        alignment_prior: Optional[AlignmentPrior] = None,
     ) -> Tuple[Optional[object], str, float]:
         geom = row.geometry
         if not self._is_valid_geometry(geom):
@@ -235,6 +265,24 @@ class BoundarySolver:
             if np.isnan(edge_strength).all() or edge_strength.size == 0:
                 return None, "No informative local raster signal.", 0.0
 
+            boundary_patch = self._boundary_hint_patch(
+                boundary_raster=boundary_raster,
+                r0=r0,
+                r1=r1,
+                c0=c0,
+                c1=c1,
+                shape=edge_strength.shape,
+            )
+            hint_note = "imagery"
+            boundary_signal_score = 0.0
+            if boundary_patch is not None:
+                edge_strength, boundary_signal_score = self._blend_boundary_hints(
+                    edge_strength=edge_strength,
+                    boundary_patch=boundary_patch,
+                )
+                if boundary_signal_score > 0.0:
+                    hint_note = "imagery+boundary-hints"
+
             edge_max = float(edge_strength.max())
             edge_mean = float(edge_strength.mean())
             if edge_max <= 0 or edge_mean <= 0:
@@ -267,6 +315,60 @@ class BoundarySolver:
                 c1=c1,
                 shape=edge_strength.shape,
             )
+            grid = self._score_candidate_grid(
+                edge_patch=edge_strength,
+                template=template,
+                max_shift_pixels=self.config.max_shift_pixels,
+                boundary_signal_score=boundary_signal_score,
+            )
+            if grid is not None:
+                grid["source"] = "local candidate-grid"
+            prior_grid = self._score_prior_candidate_grid(
+                edge_patch=edge_strength,
+                template=template,
+                max_shift_pixels=self.config.max_shift_pixels,
+                boundary_signal_score=boundary_signal_score,
+                alignment_prior=alignment_prior,
+            )
+            selected_grid = self._select_grid_candidate(grid, prior_grid)
+            if selected_grid is not None:
+                dx_px = selected_grid["dx_px"]
+                dy_px = selected_grid["dy_px"]
+                dx_m, dy_m = self._pixels_to_meters(dx_px, dy_px, raster.transform)
+                if math.isnan(dx_m) or math.isnan(dy_m) or math.isinf(dx_m) or math.isinf(dy_m):
+                    return None, "Invalid grid-search shift in map space.", 0.0
+
+                from shapely.affinity import translate
+
+                corrected = translate(target_geom, xoff=dx_m, yoff=dy_m)
+                corrected = self._transform_geometry(corrected, raster.crs, source_crs)
+                if not self._is_valid_geometry(corrected):
+                    return None, "Grid-search corrected geometry failed final validity checks.", 0.0
+
+                confidence = selected_grid["confidence"]
+                note = (
+                    f"{selected_grid.get('source', 'candidate-grid')} alignment using local edge evidence ({hint_note}): "
+                    f"dx={dx_m:.3f}, dy={dy_m:.3f}, px={dx_px:.0f},{dy_px:.0f}, "
+                    f"baseline_score={selected_grid['baseline_score']:.4f}, "
+                    f"best_score={selected_grid['best_score']:.4f}, "
+                    f"score_margin={selected_grid['score_margin']:.4f}, "
+                    f"second_margin={selected_grid['second_margin']:.4f}, "
+                    f"conf={confidence:.3f}"
+                )
+                if alignment_prior is not None:
+                    note = (
+                        f"{note}, global_prior_px={alignment_prior.dx_px:.1f},{alignment_prior.dy_px:.1f}, "
+                        f"global_prior_conf={alignment_prior.confidence:.3f}, "
+                        f"global_prior_consistency={alignment_prior.consistency:.3f}"
+                    )
+                if confidence < self.config.shift_threshold or selected_grid["score_margin"] <= 0.0:
+                    return (
+                        None,
+                        f"Grid-search margin below correction floor ({note}).",
+                        confidence,
+                    )
+                return corrected, note, confidence
+
             centroid_score = self._edge_alignment_score(
                 edge_patch=edge_strength,
                 template=template,
@@ -347,6 +449,8 @@ class BoundarySolver:
                     + 0.24 * phase_confidence
                     + 0.18 * selected_score
                 )
+            if boundary_signal_score > 0.0:
+                confidence = 0.88 * confidence + 0.12 * boundary_signal_score
             confidence = clamp_confidence(confidence)
 
             if confidence < self.config.shift_threshold:
@@ -359,7 +463,7 @@ class BoundarySolver:
             return (
                 corrected,
                 (
-                    f"Estimated placement shift using local edge evidence ({blend_note}): "
+                    f"Estimated placement shift using local edge evidence ({hint_note}, {blend_note}): "
                     f"dx={dx_m:.3f}, dy={dy_m:.3f}, px={dx_px:.2f},{dy_px:.2f}, "
                     f"signal={edge_max:.3f}, conf={confidence:.3f}"
                 ),
@@ -367,6 +471,458 @@ class BoundarySolver:
             )
         except Exception as exc:  # pragma: no cover
             return None, f"Shift estimation failed: {str(exc)[:140]}", 0.0
+
+    def _estimate_alignment_prior(
+        self,
+        *,
+        source,
+        raster: Optional[RasterLoadResult],
+        boundary_raster: Optional[RasterLoadResult],
+        source_crs=None,
+    ) -> Optional[AlignmentPrior]:
+        if np is None or raster is None or boundary_raster is None:
+            return None
+        if raster.array is None or boundary_raster.array is None:
+            return None
+        try:
+            from rasterio.transform import rowcol
+        except Exception:
+            return None
+
+        total_rows = len(source) if hasattr(source, "__len__") else 0
+        if total_rows <= 0:
+            return None
+        stride = max(1, int(math.ceil(total_rows / 420.0)))
+        sampled = source.iloc[::stride] if hasattr(source, "iloc") else source
+
+        observations: list[tuple[float, float, float, float]] = []
+        samples = 0
+        half_window = int(min(max(self.config.max_shift_pixels * 3, 28), 72))
+
+        for _, row in sampled.iterrows():
+            samples += 1
+            geom = getattr(row, "geometry", None)
+            if not self._is_valid_geometry(geom):
+                continue
+            target_geom = self._transform_geometry(geom, source_crs, raster.crs)
+            if not self._is_valid_geometry(target_geom):
+                continue
+
+            try:
+                cx, cy = target_geom.centroid.x, target_geom.centroid.y
+                r, c = rowcol(raster.transform, cx, cy)
+            except Exception:
+                continue
+            if r < 0 or c < 0 or r >= raster.height or c >= raster.width:
+                continue
+
+            r0 = max(0, r - half_window)
+            r1 = min(raster.height, r + half_window)
+            c0 = max(0, c - half_window)
+            c1 = min(raster.width, c + half_window)
+            shape = (r1 - r0, c1 - c0)
+            if shape[0] < 24 or shape[1] < 24:
+                continue
+
+            boundary_patch = self._boundary_hint_patch(
+                boundary_raster=boundary_raster,
+                r0=r0,
+                r1=r1,
+                c0=c0,
+                c1=c1,
+                shape=shape,
+            )
+            if boundary_patch is None:
+                continue
+            template = self._rasterize_geometry_edges(
+                geometry=target_geom,
+                raster_transform=raster.transform,
+                r0=r0,
+                r1=r1,
+                c0=c0,
+                c1=c1,
+                shape=shape,
+            )
+            grid = self._score_candidate_grid(
+                edge_patch=boundary_patch,
+                template=template,
+                max_shift_pixels=self.config.max_shift_pixels,
+                boundary_signal_score=0.0,
+            )
+            if grid is None:
+                continue
+            if grid["score_margin"] < 0.018 or grid["best_score"] < 0.035:
+                continue
+            if math.hypot(grid["dx_px"], grid["dy_px"]) < 1.0:
+                continue
+            weight = max(0.0, grid["score_margin"]) * (0.35 + grid["confidence"])
+            if weight <= 0.0:
+                continue
+            observations.append((grid["dx_px"], grid["dy_px"], weight, grid["score_margin"]))
+
+        if len(observations) < 12:
+            return None
+
+        dxs = np.array([item[0] for item in observations], dtype=np.float64)
+        dys = np.array([item[1] for item in observations], dtype=np.float64)
+        weights = np.array([item[2] for item in observations], dtype=np.float64)
+        margins = np.array([item[3] for item in observations], dtype=np.float64)
+        if float(weights.sum()) <= 0.0:
+            return None
+
+        med_dx = self._weighted_median(dxs, weights)
+        med_dy = self._weighted_median(dys, weights)
+        distances = np.hypot(dxs - med_dx, dys - med_dy)
+        close = distances <= max(3.5, self.config.max_shift_pixels * 0.32)
+        if not bool(close.any()):
+            return None
+
+        close_weight = float(weights[close].sum())
+        total_weight = float(weights.sum())
+        consistency = close_weight / max(total_weight, 1e-9)
+        if consistency < 0.22:
+            return None
+
+        dx = float(np.average(dxs[close], weights=weights[close]))
+        dy = float(np.average(dys[close], weights=weights[close]))
+        support = int(close.sum())
+        support_score = min(1.0, support / 80.0)
+        mean_margin = float(np.average(margins[close], weights=weights[close]))
+        margin_score = min(1.0, max(0.0, mean_margin) * 8.0)
+        confidence = clamp_confidence(
+            0.12
+            + 0.48 * consistency
+            + 0.22 * support_score
+            + 0.18 * margin_score
+        )
+        if confidence < 0.34 or math.hypot(dx, dy) < 1.0:
+            return None
+
+        return AlignmentPrior(
+            dx_px=dx,
+            dy_px=dy,
+            confidence=confidence,
+            samples=samples,
+            support=support,
+            consistency=float(consistency),
+            mean_margin=mean_margin,
+        )
+
+    @staticmethod
+    def _boundary_hint_patch(
+        *,
+        boundary_raster: Optional[RasterLoadResult],
+        r0: int,
+        r1: int,
+        c0: int,
+        c1: int,
+        shape,
+    ):
+        if np is None or boundary_raster is None or boundary_raster.array is None:
+            return None
+        if boundary_raster.height < r1 or boundary_raster.width < c1:
+            return None
+        patch = boundary_raster.array[r0:r1, c0:c1]
+        if patch.shape != shape or patch.size == 0:
+            return None
+        if np.isnan(patch).all():
+            return None
+        return patch
+
+    @staticmethod
+    def _align_boundary_raster(
+        boundary_raster: Optional[RasterLoadResult],
+        raster: Optional[RasterLoadResult],
+    ) -> Optional[RasterLoadResult]:
+        if np is None or boundary_raster is None or raster is None:
+            return boundary_raster
+        if boundary_raster.array is None or raster.array is None:
+            return boundary_raster
+
+        same_grid = (
+            boundary_raster.width == raster.width
+            and boundary_raster.height == raster.height
+            and str(boundary_raster.crs) == str(raster.crs)
+            and tuple(boundary_raster.transform) == tuple(raster.transform)
+        )
+        if same_grid:
+            return boundary_raster
+
+        try:
+            from rasterio.enums import Resampling
+            from rasterio.warp import reproject
+
+            destination = np.full((raster.height, raster.width), np.nan, dtype=np.float32)
+            source = np.nan_to_num(boundary_raster.array.astype(np.float32), nan=0.0)
+            reproject(
+                source=source,
+                destination=destination,
+                src_transform=boundary_raster.transform,
+                src_crs=boundary_raster.crs,
+                dst_transform=raster.transform,
+                dst_crs=raster.crs,
+                resampling=Resampling.bilinear,
+                src_nodata=0.0,
+                dst_nodata=np.nan,
+            )
+            return RasterLoadResult(
+                array=destination,
+                transform=raster.transform,
+                crs=raster.crs,
+                width=raster.width,
+                height=raster.height,
+            )
+        except Exception:
+            return boundary_raster
+
+    @staticmethod
+    def _blend_boundary_hints(edge_strength, boundary_patch):
+        edge = np.nan_to_num(edge_strength, nan=0.0).astype(np.float64)
+        hints = np.nan_to_num(boundary_patch, nan=0.0).astype(np.float64)
+        if edge.size == 0 or hints.size == 0:
+            return edge_strength, 0.0
+
+        edge_max = float(edge.max())
+        hint_max = float(hints.max())
+        if edge_max <= 0.0 or hint_max <= 0.0:
+            return edge_strength, 0.0
+
+        edge_norm = edge / edge_max
+        hint_norm = hints / hint_max
+        hint_active = hint_norm >= np.percentile(hint_norm, 98.0)
+        hint_density = float(hint_active.mean())
+        if hint_density <= 0.0:
+            return edge_strength, 0.0
+
+        # Keep satellite imagery primary; use hints only to strengthen nearby edge evidence.
+        blended = (0.78 * edge_norm) + (0.22 * hint_norm)
+        clarity = max(0.0, 1.0 - min(1.0, hint_density * 80.0))
+        signal_score = clamp_confidence(0.25 + 0.55 * clarity)
+        return blended.astype(np.float64), signal_score
+
+    def _score_candidate_grid(
+        self,
+        *,
+        edge_patch,
+        template,
+        max_shift_pixels: int,
+        boundary_signal_score: float,
+    ) -> Optional[dict]:
+        if np is None or edge_patch is None or template is None:
+            return None
+        template = np.asarray(template)
+        if template.size == 0 or float(template.sum()) <= 1.0:
+            return None
+
+        edge = np.nan_to_num(np.asarray(edge_patch), nan=0.0).astype(np.float64)
+        edge_max = float(edge.max()) if edge.size else 0.0
+        if edge_max <= 0.0:
+            return None
+        edge_norm = edge / edge_max
+
+        yy, xx = np.where(template > 0)
+        if len(xx) < 4:
+            return None
+
+        max_shift = int(max(1, max_shift_pixels))
+        coarse_step = 2 if max_shift <= 24 else 3
+        offsets: set[tuple[int, int]] = {(0, 0)}
+        for dy in range(-max_shift, max_shift + 1, coarse_step):
+            for dx in range(-max_shift, max_shift + 1, coarse_step):
+                offsets.add((dx, dy))
+
+        coarse = []
+        for dx, dy in offsets:
+            coarse.append((self._candidate_offset_score(edge_norm, xx, yy, dx, dy, max_shift), dx, dy))
+        coarse.sort(reverse=True)
+
+        refined_offsets: set[tuple[int, int]] = set(offsets)
+        for _, dx, dy in coarse[:8]:
+            for ddy in range(-2, 3):
+                for ddx in range(-2, 3):
+                    nx = int(dx + ddx)
+                    ny = int(dy + ddy)
+                    if abs(nx) <= max_shift and abs(ny) <= max_shift:
+                        refined_offsets.add((nx, ny))
+
+        scored = []
+        for dx, dy in refined_offsets:
+            score = self._candidate_offset_score(edge_norm, xx, yy, dx, dy, max_shift)
+            scored.append((score, dx, dy))
+        scored.sort(reverse=True)
+        if not scored:
+            return None
+
+        baseline_score = self._candidate_offset_score(edge_norm, xx, yy, 0, 0, max_shift)
+        best_score, best_dx, best_dy = scored[0]
+        second_score = scored[1][0] if len(scored) > 1 else baseline_score
+        score_margin = float(best_score - baseline_score)
+        second_margin = float(best_score - second_score)
+
+        if best_dx == 0 and best_dy == 0:
+            score_margin = 0.0
+
+        confidence = (
+            0.10
+            + min(0.72, max(0.0, score_margin) * 5.5)
+            + min(0.10, max(0.0, second_margin) * 2.8)
+            + 0.08 * max(0.0, min(1.0, boundary_signal_score))
+        )
+        # A tiny runner-up gap is often just a one-pixel plateau around the same boundary.
+        # Treat it as unsafe only when the absolute improvement over the official position is also modest.
+        # If the official boundary itself has weak support, a near-threshold candidate can still be worth moving.
+        low_official_near_threshold = baseline_score < 0.125 and score_margin >= 0.070
+        if (
+            (score_margin < 0.075 and not low_official_near_threshold)
+            or (
+                second_margin < 0.003
+                and score_margin < 0.100
+                and not low_official_near_threshold
+            )
+        ):
+            confidence = min(confidence, 0.34)
+        confidence = clamp_confidence(confidence)
+
+        return {
+            "dx_px": float(best_dx),
+            "dy_px": float(best_dy),
+            "baseline_score": float(baseline_score),
+            "best_score": float(best_score),
+            "score_margin": float(score_margin),
+            "second_margin": float(second_margin),
+            "confidence": confidence,
+        }
+
+    def _score_prior_candidate_grid(
+        self,
+        *,
+        edge_patch,
+        template,
+        max_shift_pixels: int,
+        boundary_signal_score: float,
+        alignment_prior: Optional[AlignmentPrior],
+    ) -> Optional[dict]:
+        if alignment_prior is None or alignment_prior.confidence < 0.34:
+            return None
+        if np is None or edge_patch is None or template is None:
+            return None
+        template = np.asarray(template)
+        if template.size == 0 or float(template.sum()) <= 1.0:
+            return None
+
+        edge = np.nan_to_num(np.asarray(edge_patch), nan=0.0).astype(np.float64)
+        edge_max = float(edge.max()) if edge.size else 0.0
+        if edge_max <= 0.0:
+            return None
+        edge_norm = edge / edge_max
+
+        yy, xx = np.where(template > 0)
+        if len(xx) < 4:
+            return None
+
+        max_shift = int(max(1, max_shift_pixels))
+        center_dx = int(round(alignment_prior.dx_px))
+        center_dy = int(round(alignment_prior.dy_px))
+        if abs(center_dx) > max_shift or abs(center_dy) > max_shift:
+            return None
+
+        radius = 2 if alignment_prior.confidence >= 0.55 else 3
+        offsets: set[tuple[int, int]] = {(center_dx, center_dy)}
+        for dy in range(center_dy - radius, center_dy + radius + 1):
+            for dx in range(center_dx - radius, center_dx + radius + 1):
+                if abs(dx) <= max_shift and abs(dy) <= max_shift:
+                    offsets.add((dx, dy))
+
+        scored = [
+            (self._candidate_offset_score(edge_norm, xx, yy, dx, dy, max_shift), dx, dy)
+            for dx, dy in offsets
+        ]
+        scored.sort(reverse=True)
+        if not scored:
+            return None
+
+        baseline_score = self._candidate_offset_score(edge_norm, xx, yy, 0, 0, max_shift)
+        best_score, best_dx, best_dy = scored[0]
+        second_score = scored[1][0] if len(scored) > 1 else baseline_score
+        score_margin = float(best_score - baseline_score)
+        second_margin = float(best_score - second_score)
+        if best_dx == 0 and best_dy == 0:
+            score_margin = 0.0
+
+        agreement_distance = math.hypot(best_dx - alignment_prior.dx_px, best_dy - alignment_prior.dy_px)
+        agreement = max(0.0, 1.0 - agreement_distance / max(3.5, max_shift * 0.28))
+        prior_strength = alignment_prior.confidence * agreement
+        confidence = (
+            0.11
+            + min(0.46, max(0.0, score_margin) * 5.0)
+            + min(0.07, max(0.0, second_margin) * 2.8)
+            + 0.28 * prior_strength
+            + 0.08 * max(0.0, min(1.0, boundary_signal_score))
+        )
+        if score_margin < 0.022 or agreement < 0.30:
+            confidence = min(confidence, 0.34)
+        if baseline_score >= 0.30 and score_margin < 0.055:
+            confidence = min(confidence, 0.36)
+        confidence = clamp_confidence(confidence)
+
+        return {
+            "dx_px": float(best_dx),
+            "dy_px": float(best_dy),
+            "baseline_score": float(baseline_score),
+            "best_score": float(best_score),
+            "score_margin": float(score_margin),
+            "second_margin": float(second_margin),
+            "confidence": confidence,
+            "source": "global-prior constrained candidate-grid",
+            "prior_agreement": float(agreement),
+        }
+
+    @staticmethod
+    def _select_grid_candidate(local_grid: Optional[dict], prior_grid: Optional[dict]) -> Optional[dict]:
+        if local_grid is None:
+            return prior_grid
+        if prior_grid is None:
+            return local_grid
+        if local_grid["confidence"] < 0.40 and prior_grid["confidence"] >= local_grid["confidence"]:
+            return prior_grid
+        if prior_grid["confidence"] > local_grid["confidence"] + 0.04:
+            return prior_grid
+        if local_grid["score_margin"] <= 0.0 and prior_grid["score_margin"] > 0.0:
+            return prior_grid
+        return local_grid
+
+    @staticmethod
+    def _weighted_median(values, weights) -> float:
+        values = np.asarray(values, dtype=np.float64)
+        weights = np.asarray(weights, dtype=np.float64)
+        order = np.argsort(values)
+        values = values[order]
+        weights = weights[order]
+        cumulative = np.cumsum(weights)
+        cutoff = 0.5 * float(cumulative[-1])
+        index = int(np.searchsorted(cumulative, cutoff, side="left"))
+        index = max(0, min(index, len(values) - 1))
+        return float(values[index])
+
+    @staticmethod
+    def _candidate_offset_score(edge_norm, xx, yy, dx: int, dy: int, max_shift: int) -> float:
+        h, w = edge_norm.shape
+        sx = xx + dx
+        sy = yy + dy
+        valid = (sx >= 0) & (sx < w) & (sy >= 0) & (sy < h)
+        coverage = float(valid.mean()) if len(valid) else 0.0
+        if coverage < 0.65:
+            return 0.0
+
+        values = edge_norm[sy[valid], sx[valid]]
+        if values.size == 0:
+            return 0.0
+        mean_support = float(values.mean())
+        upper_support = float(np.percentile(values, 75))
+        alignment = 0.65 * mean_support + 0.35 * upper_support
+        distance = math.hypot(float(dx), float(dy)) / max(1.0, float(max_shift))
+        distance_penalty = 0.08 * (distance ** 1.2)
+        return max(0.0, coverage * alignment - distance_penalty)
 
     def _is_valid_geometry(self, geometry) -> bool:
         try:
@@ -635,7 +1191,13 @@ class BoundarySolver:
             "properties": props_out,
         }
 
-    def _write_manifest(self, artifacts: SolveArtifacts, raster_used: bool) -> None:
+    def _write_manifest(
+        self,
+        artifacts: SolveArtifacts,
+        raster_used: bool,
+        boundary_hints_used: bool,
+        alignment_prior: Optional[AlignmentPrior],
+    ) -> None:
         conf_stats = {
             "count": len(self._confidences),
             "min": float(min(self._confidences)) if self._confidences else 0.0,
@@ -649,6 +1211,16 @@ class BoundarySolver:
             "runner": "bhume-boundary-assignment",
             "config": self.config.__dict__,
             "raster_used": raster_used,
+            "boundary_hints_used": boundary_hints_used,
+            "alignment_prior": None if alignment_prior is None else {
+                "dx_px": alignment_prior.dx_px,
+                "dy_px": alignment_prior.dy_px,
+                "confidence": alignment_prior.confidence,
+                "samples": alignment_prior.samples,
+                "support": alignment_prior.support,
+                "consistency": alignment_prior.consistency,
+                "mean_margin": alignment_prior.mean_margin,
+            },
             "counts": {
                 "total": artifacts.total,
                 "corrected": artifacts.corrected,

@@ -10,7 +10,7 @@ from typing import Any
 from .config import DEFAULT_PRESET, SolverConfig
 from .download import fetch_all
 from .io_utils import read_geojson
-from .scorer import score_predictions
+from .scorer import score_predictions, score_predictions_with_baseline
 from .solver import BoundarySolver
 from .validate import maybe_resolve_plot_id_field, validate_predictions_file
 
@@ -44,9 +44,16 @@ def parse_args() -> argparse.Namespace:
     solve.add_argument("--strict", action="store_true")
     solve.add_argument("--skip-validation", action="store_true", help="Skip post-run prediction schema checks.")
     solve.add_argument("--list-presets", action="store_true")
+    solve.add_argument(
+        "--signal-mode",
+        choices=("imagery_plus_boundaries", "imagery_only", "boundaries_only"),
+        default="imagery_plus_boundaries",
+        help="Evidence sources used for correction scoring.",
+    )
 
     score = sub.add_parser("score", help="Score predictions against truth")
     score.add_argument("--predictions", type=Path, required=True)
+    score.add_argument("--input", type=Path, default=None, help="Original input.geojson for baseline-vs-prediction scoring.")
     score.add_argument("--truth", type=Path, required=True)
     score.add_argument("--out", type=Path, default=None)
 
@@ -117,6 +124,11 @@ def cmd_solve(args: argparse.Namespace) -> int:
     solver = BoundarySolver(conf)
     imagery = args.village / "imagery.tif"
     boundaries = args.village / "boundaries.tif"
+    if args.signal_mode == "imagery_only":
+        boundaries = None
+    elif args.signal_mode == "boundaries_only":
+        imagery = args.village / "boundaries.tif"
+        boundaries = None
     artifacts = solver.run(
         input_geojson=args.village / "input.geojson",
         output_geojson=args.out,
@@ -153,9 +165,15 @@ def cmd_solve(args: argparse.Namespace) -> int:
 
 
 def cmd_score(args: argparse.Namespace) -> int:
-    metrics = score_predictions(args.predictions, args.truth, args.out)
+    if args.input is not None:
+        metrics = score_predictions_with_baseline(args.predictions, args.input, args.truth, args.out)
+    else:
+        metrics = score_predictions(args.predictions, args.truth, args.out)
     for key, value in metrics.items():
-        print(f"{key}: {value}")
+        if key == "per_plot":
+            print(f"{key}: {len(value)} rows")
+        else:
+            print(f"{key}: {value}")
     return 0
 
 
