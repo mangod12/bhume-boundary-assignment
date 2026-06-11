@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BhuMe Walkthrough Teleprompter</title>
+  <style>
+    :root {
+      --bg: #11140f;
+      --panel: #f6f1df;
+      --ink: #1e2419;
+      --muted: #66705d;
+      --accent: #a45f22;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(164, 95, 34, 0.28), transparent 34rem),
+        linear-gradient(135deg, #11140f 0%, #252b1f 100%);
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    main {
+      width: min(1100px, calc(100vw - 40px));
+      margin: 26px auto 80px;
+      background: var(--panel);
+      border: 8px solid #2d3426;
+      border-radius: 26px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.35);
+      overflow: hidden;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #e7dcc1;
+      border-bottom: 3px solid #d0bd95;
+      padding: 18px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 44px);
+      letter-spacing: -0.04em;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font: 700 15px/1.1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+    }
+    .script {
+      padding: 28px;
+    }
+    section {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 22px;
+      padding: 28px 0;
+      border-bottom: 1px solid #d6c7a5;
+    }
+    time {
+      color: var(--accent);
+      font: 800 24px/1 ui-sans-serif, system-ui, sans-serif;
+      position: sticky;
+      top: 104px;
+      align-self: start;
+    }
+    p {
+      margin: 0 0 14px;
+      font-size: clamp(30px, 4vw, 52px);
+      line-height: 1.18;
+      letter-spacing: -0.035em;
+    }
+    .hint {
+      color: var(--muted);
+      font: 700 17px/1.4 ui-sans-serif, system-ui, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 760px) {
+      section { grid-template-columns: 1fr; }
+      time { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>BhuMe Walkthrough</h1>
+      <div class="controls">
+        <button onclick="window.scrollBy({top: 500, behavior: 'smooth'})">Next</button>
+        <button onclick="document.body.requestFullscreen?.()">Fullscreen</button>
+      </div>
+    </header>
+    <div class="script">
+      <section><time>0:00</time><div><div class="hint">Opening</div><p>Hi, I am walking through my BhuMe boundary correction submission.</p><p>The main thing I want to show is that I treated this as a trust problem, not just a polygon-moving problem.</p></div></section>
+      <section><time>0:15</time><div><div class="hint">Task</div><p>The task is to read official plot boundaries, compare them against satellite imagery and the rough boundary hint layer, and output predictions.</p><p>Each plot is either corrected or flagged.</p></div></section>
+      <section><time>0:35</time><div><div class="hint">Scoring</div><p>The scoring dimensions are accuracy, confidence calibration, and restraint.</p><p>That changed the approach from maximum corrections to trustworthy corrections.</p></div></section>
+      <section><time>0:55</time><div><div class="hint">Hidden set</div><p>The public examples are tiny, so I used them as a sanity check, not as training data.</p><p>I did not hard-code public-truth shifts.</p></div></section>
+      <section><time>1:15</time><div><div class="hint">Inputs</div><p>The inputs are input.geojson, imagery.tif, and boundaries.tif.</p><p>Imagery is primary. Boundaries are useful, but rough.</p></div></section>
+      <section><time>1:40</time><div><div class="hint">Raster alignment</div><p>The solver aligns boundaries.tif onto the imagery grid before using it.</p><p>Without that step, the hint layer can be misleading.</p></div></section>
+      <section><time>2:05</time><div><div class="hint">Method</div><p>For each plot, I rasterize the official boundary into a local patch and score nearby candidate shifts.</p><p>The candidate has to beat the official position.</p></div></section>
+      <section><time>2:35</time><div><div class="hint">Confidence</div><p>Confidence is based on evidence margin and ambiguity.</p><p>If the evidence is weak or noisy, the plot is flagged.</p></div></section>
+      <section><time>3:00</time><div><div class="hint">Restraint</div><p>A bad land-boundary correction is worse than no correction.</p><p>That is why many plots remain flagged.</p></div></section>
+      <section><time>3:25</time><div><div class="hint">Vadner result</div><p>Vadnerbhairav: 4 corrected, 2 flagged.</p><p>Median IoU is 0.888 versus official 0.612, and corrected public plots improve.</p></div></section>
+      <section><time>3:55</time><div><div class="hint">Malatavadi result</div><p>Malatavadi: 1 corrected, 2 flagged.</p><p>Median IoU is 0.763 versus official 0.510.</p></div></section>
+      <section><time>4:20</time><div><div class="hint">Ablation</div><p>The ablation shows boundary-only is not safe across both villages.</p><p>The final mode combines imagery and aligned boundary hints.</p></div></section>
+      <section><time>4:40</time><div><div class="hint">Failure modes</div><p>This can fail when imagery edges are weak, crop edges do not match legal boundaries, or hints are noisy.</p><p>In those cases, the solver flags.</p></div></section>
+      <section><time>5:00</time><div><div class="hint">AI use</div><p>I used AI to understand the assignment, audit the contract, debug GeoJSON, improve raster alignment, and verify with Playwright.</p></div></section>
+      <section><time>5:20</time><div><div class="hint">No runtime LLM</div><p>I did not use an LLM inside the solver.</p><p>The solver is deterministic and reproducible from the provided data.</p></div></section>
+      <section><time>5:50</time><div><div class="hint">Close</div><p>This is a reproducible correction pipeline that improves confident cases, flags uncertain cases, and treats confidence as part of the method.</p></div></section>
+    </div>
+  </main>
+</body>
+</html>
+
