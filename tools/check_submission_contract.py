@@ -11,10 +11,6 @@ FINAL_OUTPUTS = {
     "vadner": ROOT / "data" / "outputs" / "final" / "vadner",
     "malatavadi": ROOT / "data" / "outputs" / "final" / "malatavadi",
 }
-REVIEW_PANELS = {
-    "vadner": ROOT / "data" / "outputs" / "review-panels" / "vadner",
-    "malatavadi": ROOT / "data" / "outputs" / "review-panels" / "malatavadi",
-}
 REQUIRED_PROPERTIES = {"plot_number", "status", "confidence", "method_note"}
 ALLOWED_STATUS = {"corrected", "flagged"}
 
@@ -127,41 +123,11 @@ def check_readme() -> None:
             fail(f"README missing required submission context: {phrase}")
 
 
-def check_review_panels() -> None:
-    for village, folder in REVIEW_PANELS.items():
-        index = load_json(folder / "index.json")
-        if not isinstance(index, list) or len(index) < 6:
-            fail(f"{village}: review panel index is missing or too small")
-        for item in index[:6]:
-            file_name = item.get("file")
-            if not file_name or not (folder / file_name).exists():
-                fail(f"{village}: review panel image missing for index item {item}")
-
-
-def check_ablation_report() -> None:
-    report = load_json(ROOT / "data" / "outputs" / "ablation" / "summary.json")
-    modes = set(report.get("signal_modes") or [])
-    expected = {"imagery_only", "boundaries_only", "imagery_plus_boundaries"}
-    if modes != expected:
-        fail(f"ablation report modes mismatch: {sorted(modes)}")
-    if len(report.get("results") or []) < 6:
-        fail("ablation report does not contain all village/mode rows")
-
-
-def check_playwright_audit() -> None:
-    audit = load_json(ROOT / "tools" / "last_audit.json")
-    if audit.get("allOk") is not True or audit.get("routesChecked") != 7:
-        fail("Playwright audit did not pass all expected routes")
-
-
 def main() -> int:
     for village, folder in FINAL_OUTPUTS.items():
         check_predictions(village, folder)
     check_transcripts()
     check_readme()
-    check_review_panels()
-    check_ablation_report()
-    check_playwright_audit()
     print("PASS: local submission contract checks passed")
     return 0
 

@@ -7,3 +7,21 @@ build/
 *.egg-info/
 .DS_Store
 artifacts/
+bhume-starter-kit/
+uv.lock
+scripts/preset_sweep.py
+tools/last_audit.json
+tools/render_review_panels.py
+tools/run_ablation_report.py
+
+# Assignment data can be fetched from the BhuMe site.
+data/raw*/
+data/12429_*/
+data/34855_*/
+data/bhume-starter-kit.zip
+data/download_manifest.json
+
+# Keep only submission-ready final outputs in Git.
+data/outputs/*
+!data/outputs/final/
+!data/outputs/final/**

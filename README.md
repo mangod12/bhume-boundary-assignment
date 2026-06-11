@@ -5,13 +5,13 @@ This repository contains a reproducible Python pipeline for the BhuMe boundary c
 ## What Is Included
 
 - `src/bhume/`: pipeline source code.
-- `scripts/run_workflow.py`: one-command workflow for audit, solve, and scoring.
-- `scripts/preset_sweep.py`: compares solver presets across villages.
-- `tools/audit_assignment_site.mjs`: Playwright audit for the assignment website/routes.
-- `data/`: downloaded assignment inputs, starter kit archive, generated outputs, validation runs, preset sweeps, final predictions, scores, and manifests.
+- `scripts/run_workflow.py`: one-command workflow for solve and scoring after data is downloaded.
+- `tools/audit_assignment_site.mjs`: optional Playwright audit for the assignment website/routes.
+- `tools/check_submission_contract.py`: local checker for the final submission artifacts.
+- `data/outputs/final/`: submission-ready predictions, manifests, and public example scores.
 - `transcripts/`: AI-use evidence, review notes, and reasoning snapshots requested by the assignment.
 
-The repository includes the local assignment data and generated artifacts present in this workspace. They can also be regenerated with the commands below.
+The repository intentionally does not track downloaded raw rasters, starter-kit unpacking, validation runs, review panels, or preset sweeps. Those are reproducible local artifacts and make the GitHub submission noisy. Raw data can be fetched from the BhuMe website with the command below.
 
 ## Install
 
@@ -57,7 +57,7 @@ Confidence is an evidence score, not a learned probability. Higher values requir
 
 ## Signal Ablation Snapshot
 
-The ablation report under `data/outputs/ablation/summary.json` runs on the public-truth subset. It is intentionally not used to tune the final thresholds; it explains why the final combined mode is conservative.
+I ran a public-truth signal ablation during development. It is intentionally not required for submission, but the conclusion is summarized here because it explains why the final combined mode is conservative.
 
 | Signal mode | Vadner public delta | Malatavadi public delta | Interpretation |
 | --- | ---: | ---: | --- |
@@ -113,12 +113,6 @@ List solver presets:
 python -m bhume.cli solve --list-presets
 ```
 
-Run a preset comparison:
-
-```powershell
-python scripts/preset_sweep.py --presets conservative balanced aggressive golden
-```
-
 Run the assignment website audit:
 
 ```powershell
@@ -129,22 +123,6 @@ Check local submission constraints:
 
 ```powershell
 python tools/check_submission_contract.py
-```
-
-Run the ablation report:
-
-```powershell
-python tools/run_ablation_report.py --preset golden
-```
-
-Render visual review panels:
-
-```powershell
-python tools/render_review_panels.py `
-  --village data/raw/34855_vadnerbhairav_chandavad_nashik `
-  --predictions data/outputs/final/vadner/predictions.geojson `
-  --truth data/raw/34855_vadnerbhairav_chandavad_nashik/example_truths.geojson `
-  --out-dir data/outputs/review-panels/vadner
 ```
 
 ## Data And Deliverables
@@ -159,13 +137,6 @@ The checked-in final outputs are:
 - `data/outputs/final/malatavadi/score.json`
 
 These are the assignment-ready artifacts. The rest of the repository exists to explain and reproduce how they were generated.
-
-Additional checked-in data includes:
-
-- raw downloaded assignment folders under `data/raw/`
-- unpacked village folders under `data/`
-- preset sweep and validation outputs under `data/outputs/`
-- assignment starter archive and download manifests
 
 ## Submission Notes
 
