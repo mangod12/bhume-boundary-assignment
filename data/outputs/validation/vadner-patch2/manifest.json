@@ -1,0 +1,36 @@
+{
+  "version": "0.1.0",
+  "timestamp_utc": "2026-06-10T14:11:26Z",
+  "runner": "bhume-boundary-assignment",
+  "config": {
+    "village_name": "34855_vadnerbhairav_chandavad_nashik",
+    "plot_id_field": "plot_number",
+    "preset": "golden",
+    "include_flagged": true,
+    "min_confidence": 0.08,
+    "max_shift_pixels": 20,
+    "shift_threshold": 0.4,
+    "area_ratio_low": 0.36,
+    "area_ratio_high": 1.78,
+    "strict": true
+  },
+  "raster_used": true,
+  "counts": {
+    "total": 2457,
+    "corrected": 549,
+    "flagged": 1908,
+    "skipped": 0
+  },
+  "confidence_stats": {
+    "count": 2457,
+    "min": 0.35,
+    "max": 0.85,
+    "mean": 0.3810424943237285
+  },
+  "geometry_repair": {
+    "attempted": 1,
+    "repaired": 1,
+    "unrepairable": 0
+  },
+  "elapsed_seconds": 134.1168
+}

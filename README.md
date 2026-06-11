@@ -8,10 +8,10 @@ This repository contains a reproducible Python pipeline for the BhuMe boundary c
 - `scripts/run_workflow.py`: one-command workflow for audit, solve, and scoring.
 - `scripts/preset_sweep.py`: compares solver presets across villages.
 - `tools/audit_assignment_site.mjs`: Playwright audit for the assignment website/routes.
-- `data/outputs/final/`: final submitted prediction, score, and manifest artifacts.
+- `data/`: downloaded assignment inputs, starter kit archive, generated outputs, validation runs, preset sweeps, final predictions, scores, and manifests.
 - `transcripts/`: placeholder for chat logs and reasoning snapshots requested by the assignment.
 
-Large downloaded inputs, TIFF imagery, duplicate raw data, and exploratory sweep outputs are intentionally excluded from git. They can be regenerated with the commands below.
+The repository includes the local assignment data and generated artifacts present in this workspace. They can also be regenerated with the commands below.
 
 ## Install
 
@@ -100,7 +100,7 @@ Run the assignment website audit:
 node tools/audit_assignment_site.mjs > tools/last_audit.json
 ```
 
-## Final Deliverables
+## Data And Deliverables
 
 The checked-in final outputs are:
 
@@ -112,3 +112,10 @@ The checked-in final outputs are:
 - `data/outputs/final/malatavadi/score.json`
 
 These are the assignment-ready artifacts. The rest of the repository exists to explain and reproduce how they were generated.
+
+Additional checked-in data includes:
+
+- raw downloaded assignment folders under `data/raw/`
+- unpacked village folders under `data/`
+- preset sweep and validation outputs under `data/outputs/`
+- assignment starter archive and download manifests

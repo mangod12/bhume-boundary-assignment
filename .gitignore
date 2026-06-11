@@ -6,18 +6,4 @@ dist/
 build/
 *.egg-info/
 .DS_Store
-
-# Downloaded/generated assignment data. Keep the repo focused on source
-# and final deliverables; raw data can be fetched with the CLI.
-data/raw/
-data/work/
-data/bhume-starter-kit.zip
-data/download_manifest.json
-data/12429_malatavadi_chandgad_kolhapur/
-data/34855_vadnerbhairav_chandavad_nashik/
-data/raw/
-data/outputs/*
-!data/outputs/final/
-!data/outputs/final/**
 artifacts/
-tools/last_audit.json

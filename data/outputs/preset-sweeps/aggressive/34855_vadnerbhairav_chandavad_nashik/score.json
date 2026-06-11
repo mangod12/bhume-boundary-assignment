@@ -1,0 +1,8 @@
+{
+  "total": 6,
+  "mean_iou": 0.5988309707795758,
+  "mean_area_delta": 0.019808495828276946,
+  "corrected_ratio": 0.0,
+  "flagged_ratio": 1.0,
+  "corrected_mean_iou": 0.0
+}
