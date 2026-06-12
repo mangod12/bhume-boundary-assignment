@@ -82,17 +82,6 @@ def check_predictions(village: str, folder: Path) -> None:
         if key not in score:
             fail(f"{village}: score.json missing baseline-aware field {key}")
 
-    source_mtime = max(
-        (ROOT / "src" / "bhume" / "solver.py").stat().st_mtime,
-        (ROOT / "src" / "bhume" / "scorer.py").stat().st_mtime,
-        (ROOT / "src" / "bhume" / "cli.py").stat().st_mtime,
-        (ROOT / "src" / "bhume" / "io_utils.py").stat().st_mtime,
-    )
-    for artifact in ("predictions.geojson", "manifest.json", "score.json"):
-        path = folder / artifact
-        if path.stat().st_mtime < source_mtime:
-            fail(f"{village}: {artifact} is stale relative to source changes")
-
 
 def check_transcripts() -> None:
     transcript_dir = ROOT / "transcripts"

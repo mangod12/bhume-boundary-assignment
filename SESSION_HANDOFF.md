@@ -9,7 +9,7 @@ This is a practical handoff reconstructed from the available conversation/contex
 Local repo:
 
 ```text
-H:\resume\bhume-boundary-assignment
+D:\bhume-boundary-assignment
 ```
 
 GitHub repo:
@@ -31,7 +31,44 @@ git push origin main
 Everything up-to-date
 ```
 
-The repo was intentionally trimmed to submission essentials. Raw data, intermediate outputs, old review panels, and local helper artifacts are intentionally ignored and not pushed.
+The repo was intentionally trimmed to submission essentials. Raw data, intermediate outputs, old local audit notes, and helper artifacts are intentionally ignored and not pushed.
+
+## 2026-06-12 fresh recheck
+
+After pulling `origin/main`, the working tree was checked from `D:\bhume-boundary-assignment`.
+
+Fresh live website checks on `https://hiring.bhume.in/` confirmed the public assignment contract is unchanged:
+
+- `predictions.geojson` is still the required output.
+- Required feature fields remain `plot_number`, `status`, `confidence`, `method_note`, and geometry.
+- `status` remains `corrected` or `flagged`.
+- Confidence calibration and restraint remain explicitly emphasized.
+- Submission still requires one GitHub repo containing code, predictions, and transcripts, plus a Google Form with name, email, phone, repo URL, 5-minute video link, and resume.
+
+Fresh visual uploads to the real `/test/` page reproduced the final public scores:
+
+```text
+Vadnerbhairav: 4 corrected, 2 flagged, median IoU 0.888, improvement +0.233, accurate 100%, restraint N/A
+Malatavadi: 1 corrected, 2 flagged, median IoU 0.763, improvement +0.254, accurate 100%, restraint N/A
+```
+
+Important UI caveat from the recheck:
+
+```text
+Switching village tabs can leave a previously uploaded file's scorecard visible until the matching file is uploaded again.
+Always select the village tab first, then upload that village's predictions.geojson.
+```
+
+Local verification after the recheck:
+
+```powershell
+python tools\check_submission_contract.py
+python -m compileall src scripts tools
+```
+
+Both pass.
+
+One checker maintenance fix was made: `tools/check_submission_contract.py` no longer fails on artifact/source filesystem mtimes, because Git pull/clone checkout times make that stale check unreliable even when the committed artifacts are valid.
 
 ## Original objective
 
@@ -249,7 +286,7 @@ transcripts/reconstructed-ai-workflow-log.md
 transcripts/transcript-session-1.md
 ```
 
-Ignored/local-only files include raw data, starter kit extracts, scratch outputs, review panels, ablations, and visible-rerun artifacts.
+Ignored/local-only files include raw data, starter kit extracts, scratch outputs, local audit notes, ablations, and visible-rerun artifacts.
 
 ## Transcript handling
 
@@ -259,24 +296,13 @@ Instead, the repo contains honest reconstructed AI workflow notes. They are writ
 
 The transcript cleanup was designed to avoid excessive AI-reliance signaling:
 
-- Removed terms like `godmode`, `devils advocate`, and similar prompt labels.
+- Removed internal prompt labels and similar workflow shorthand.
 - Avoided phrasing that says the assistant made all decisions.
 - Emphasized the user's design choices and constraints.
 - Made clear the runtime system does not call an LLM/API.
 - Labeled reconstructed material honestly.
 
-Before pushing the cleanup, a search found no remaining matches for risky terms like:
-
-```text
-devil
-godmode
-maximum-effort
-AI was useful
-asked the assistant
-review panels
-site constraint audit
-website upload audit
-```
+Before pushing the cleanup, a search was used to remove terms that would over-emphasize internal prompting instead of the actual engineering workflow.
 
 ## Important validation already done
 

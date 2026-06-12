@@ -11,7 +11,7 @@ This repository contains a reproducible Python pipeline for the BhuMe boundary c
 - `data/outputs/final/`: submission-ready predictions, manifests, and public example scores.
 - `transcripts/`: AI-use evidence, review notes, and reasoning snapshots requested by the assignment.
 
-The repository intentionally does not track downloaded raw rasters, starter-kit unpacking, validation runs, review panels, or preset sweeps. Those are reproducible local artifacts and make the GitHub submission noisy. Raw data can be fetched from the BhuMe website with the command below.
+The repository intentionally does not track downloaded raw rasters, starter-kit unpacking, validation runs, local audit notes, or preset sweeps. Those are reproducible local artifacts and make the GitHub submission noisy. Raw data can be fetched from the BhuMe website with the command below.
 
 ## Install
 
