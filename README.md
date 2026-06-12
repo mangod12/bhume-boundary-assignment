@@ -76,7 +76,7 @@ python -m bhume.cli fetch --out data/raw
 Run the full workflow for both villages using the final preset:
 
 ```powershell
-python scripts/run_workflow.py --preset golden --run-score --json --out-root data/outputs/workflow
+python scripts/run_workflow.py --preset golden --include-flagged --run-score --json --out-root data/outputs/workflow
 ```
 
 Generate final outputs manually for one village:
@@ -116,6 +116,7 @@ python -m bhume.cli solve --list-presets
 Run the assignment website audit:
 
 ```powershell
+npm install --no-save playwright
 node tools/audit_assignment_site.mjs > tools/last_audit.json
 ```
 
@@ -141,5 +142,7 @@ These are the assignment-ready artifacts. The rest of the repository exists to e
 ## Submission Notes
 
 - AI-use evidence is under `transcripts/`.
+- The video walkthrough script is in `VIDEO_SCRIPT.md`.
+- A separate command-by-command run guide is in `RUN_STEPS.md`.
 - The 5-minute video is not stored in Git; submit the hosted link in the Google Form.
 - The video should focus on the tradeoff between correction coverage and trust: why the solver leaves many plots flagged, what evidence makes a correction acceptable, where the method breaks, and how `boundaries.tif` is used only as a hint.

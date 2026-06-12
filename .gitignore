@@ -5,6 +5,8 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+node_modules/
+package-lock.json
 .DS_Store
 artifacts/
 bhume-starter-kit/

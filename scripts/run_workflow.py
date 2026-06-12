@@ -168,19 +168,6 @@ def run_case(
                 cwd=PROJECT_ROOT,
             )
             score_payload = json.loads(score_path.read_text(encoding="utf-8"))
-            run_cmd(
-                [
-                    sys.executable,
-                    "tools/render_review_panels.py",
-                    "--village", str(village_dir),
-                    "--predictions", str(pred_path),
-                    "--truth", str(truth_path),
-                    "--out-dir", str(out_dir / "review_panels"),
-                    "--max-panels", "18",
-                ],
-                cwd=PROJECT_ROOT,
-            )
-
         elapsed = (datetime.now(timezone.utc) - start).total_seconds()
         return CaseResult(
             village=village_dir.name,
@@ -239,12 +226,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--base-url",
         default="https://hiring.bhume.in",
-        help="Assignment base URL for audit.",
+        help="Assignment base URL for optional audit.",
+    )
+    parser.add_argument(
+        "--audit",
+        action="store_true",
+        help="Run optional Playwright page checks before the solver workflow.",
     )
     parser.add_argument(
         "--no-audit",
         action="store_true",
-        help="Skip Playwright page checks.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--json",
@@ -275,7 +267,7 @@ def main() -> int:
     out_root.mkdir(parents=True, exist_ok=True)
 
     audit = None
-    if not args.no_audit:
+    if args.audit and not args.no_audit:
         audit = run_assignment_audit(base_url=args.base_url, project_root=PROJECT_ROOT)
         if not audit.get("allOk"):
             raise RuntimeError(

@@ -70,6 +70,61 @@ Both pass.
 
 One checker maintenance fix was made: `tools/check_submission_contract.py` no longer fails on artifact/source filesystem mtimes, because Git pull/clone checkout times make that stale check unreliable even when the committed artifacts are valid.
 
+## 2026-06-12 final project check
+
+The assignment website was checked again visually:
+
+- `/task/` still requires EPSG:4326 FeatureCollections with `plot_number`, `status`, `confidence`, `method_note`, and geometry.
+- `/start/` still lists the same two villages and the same input, imagery, rough boundary, and public truth files.
+- `/test/` still returns the same public results when each village tab is selected before uploading that village's final `predictions.geojson`.
+- `/submit/` still asks for one GitHub repo plus a Google Form containing name, email, phone, repo URL, 5-minute video link, and resume.
+
+Fresh public tester results:
+
+```text
+Vadnerbhairav: 4 corrected, 2 flagged, median IoU 0.888, improvement +0.233, accurate 100%, restraint N/A
+Malatavadi: 1 corrected, 2 flagged, median IoU 0.763, improvement +0.254, accurate 100%, restraint N/A
+```
+
+Fresh local verification:
+
+```powershell
+python tools\check_submission_contract.py
+python -m compileall src scripts tools
+python -m bhume.cli --help
+python -m bhume.cli solve --list-presets
+python scripts\run_workflow.py --help
+```
+
+All passed after installing the package with `pip install -e .`.
+
+Full ignored local reproduction was also run after downloading live data:
+
+```powershell
+python -m bhume.cli fetch --out data/raw
+python scripts\run_workflow.py --preset golden --include-flagged --run-score --json --out-root data\outputs\workflow
+```
+
+Result:
+
+```text
+Status: pass
+Cases ok: 2
+Malatavadi: 2508 total, 231 corrected, 2277 flagged, mean IoU delta +0.0845309349360504
+Vadnerbhairav: 2457 total, 923 corrected, 1534 flagged, mean IoU delta +0.14752413251394147
+```
+
+The regenerated prediction files have identical plot sets, statuses, confidences, method notes, counts, and public scores compared with the checked-in final files. File hashes differ because a small subset of coordinates differs only by floating-point serialization noise, with maximum measured coordinate delta about `3.55e-15` degrees.
+
+Two files were added for the video/submission workflow:
+
+```text
+VIDEO_SCRIPT.md
+RUN_STEPS.md
+```
+
+`scripts/run_workflow.py` was cleaned up so `--run-score` no longer calls the removed local review-panel renderer. The optional website route audit is now opt-in through `--audit`; the normal workflow is Python-only after dependencies and data are installed.
+
 ## Original objective
 
 The user wanted to submit a strong take-home assignment for BhuMe AI's full-stack/geospatial internship challenge.
@@ -259,6 +314,8 @@ Core tracked files include:
 ```text
 .gitignore
 README.md
+RUN_STEPS.md
+VIDEO_SCRIPT.md
 pyproject.toml
 requirements.txt
 scripts/run_workflow.py
@@ -447,5 +504,5 @@ This file was created so the work can be picked up from another machine or chat 
 Path:
 
 ```text
-H:\resume\bhume-boundary-assignment\SESSION_HANDOFF.md
+D:\bhume-boundary-assignment\SESSION_HANDOFF.md
 ```
