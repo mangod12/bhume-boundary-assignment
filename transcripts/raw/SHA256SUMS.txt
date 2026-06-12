@@ -1,0 +1,2 @@
+# SHA-256 checksums for the unmodified Codex raw session logs used as the primary transcript evidence.
+fd7ff55e74df762bda374495d8e846dd9627da6082370b5c5cc6d7f78cecd4df  rollout-2026-06-11T11-39-58-019eb54d-3b30-7c82-82f7-79570ef5ea7b.jsonl

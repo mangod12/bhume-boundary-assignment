@@ -201,8 +201,10 @@ Additional artifacts were generated:
 - final predictions;
 - manifests;
 - scores;
+- the June 11 raw Codex session log under `transcripts/raw/`;
+- the SHA-256 checksum for the primary raw session log.
 
-The final repository was pushed to GitHub.
+At the time this note was written, these transcript and integrity files still needed to be committed and pushed before the GitHub repository URL could serve as the final submission evidence.
 
 ## 10. What I learned
 
