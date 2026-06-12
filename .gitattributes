@@ -1,0 +1,3 @@
+transcripts/raw/*.jsonl text eol=lf
+transcripts/raw/*.md text eol=lf
+transcripts/raw/SHA256SUMS.txt text eol=lf
